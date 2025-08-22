@@ -150,7 +150,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("close", close_ticket))
 
-    # on non command i.e message - echo the message on Telegram
+    # Forward user messages and attachments to support group
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.PHOTO, handle_message))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_message))
