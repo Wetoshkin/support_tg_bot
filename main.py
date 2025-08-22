@@ -1,8 +1,13 @@
 import logging
-import os
 
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes,
+)
 
 # --- IMPORTANT ---
 # Replace these placeholder values with your actual Bot Token and Group ID.
@@ -30,6 +35,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         rf"Здравствуйте, {user.mention_html()}! Я бот технической поддержки. Отправьте мне свой вопрос, и я создам для вас тикет.",
     )
 
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle incoming messages for ticket creation and forwarding."""
     message = update.message
@@ -37,7 +43,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user = update.effective_user
 
     # Handle messages from users in private chat
-    if chat_id > 0: # User chats have positive IDs
+    if chat_id > 0:  # User chats have positive IDs
         thread_id = user_threads.get(chat_id)
 
         # If no thread exists, create one
@@ -48,19 +54,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
                 topic = await context.bot.create_forum_topic(
                     chat_id=SUPPORT_GROUP_ID,
-                    name=f"Тикет #{ticket_counter} - {user.full_name}"
+                    name=f"Тикет #{ticket_counter} - {user.full_name}",
                 )
                 thread_id = topic.message_thread_id
                 user_threads[chat_id] = thread_id
                 await context.bot.send_message(
                     chat_id=SUPPORT_GROUP_ID,
-                    text=f"New ticket #{thread_id} from {user.mention_html()} (ID: {user.id})",
-                    message_thread_id=thread_id
+                    text=f"New ticket #{ticket_counter} from {user.mention_html()} (ID: {user.id})",
+                    message_thread_id=thread_id,
                 )
-                await message.reply_text("Спасибо! Ваш тикет создан. Специалист поддержки скоро свяжется с вами.")
+                await message.reply_text(
+                    "Спасибо! Ваш тикет создан. Специалист поддержки скоро свяжется с вами."
+                )
             except Exception as e:
                 logger.error(f"Failed to create topic for user {chat_id}: {e}")
-                await message.reply_text("К сожалению, не удалось создать тикет. Пожалуйста, попробуйте еще раз позже.")
+                await message.reply_text(
+                    "К сожалению, не удалось создать тикет. Пожалуйста, попробуйте еще раз позже."
+                )
                 return
 
         # Forward user's message to the group thread
@@ -69,10 +79,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 chat_id=SUPPORT_GROUP_ID,
                 from_chat_id=chat_id,
                 message_id=message.message_id,
-                message_thread_id=thread_id
+                message_thread_id=thread_id,
             )
         except Exception as e:
-            logger.error(f"Failed to forward message from user {chat_id} to thread {thread_id}: {e}")
+            logger.error(
+                f"Failed to forward message from user {chat_id} to thread {thread_id}: {e}"
+            )
 
     # Handle messages from the support group
     elif str(chat_id) == str(SUPPORT_GROUP_ID):
@@ -91,7 +103,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     return
 
                 # Don't forward the /close command to the user
-                if message.text and message.text.startswith('/close'):
+                if message.text and message.text.startswith("/close"):
                     return
 
                 try:
@@ -99,10 +111,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     await context.bot.copy_message(
                         chat_id=user_id_to_reply,
                         from_chat_id=chat_id,
-                        message_id=message.message_id
+                        message_id=message.message_id,
                     )
                 except Exception as e:
-                    logger.error(f"Failed to forward message from thread {thread_id} to user {user_id_to_reply}: {e}")
+                    logger.error(
+                        f"Failed to forward message from thread {thread_id} to user {user_id_to_reply}: {e}"
+                    )
 
 
 async def close_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -111,7 +125,9 @@ async def close_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     thread_id = update.message.message_thread_id
 
     if str(chat_id) != str(SUPPORT_GROUP_ID) or not thread_id:
-        await update.message.reply_text("Эта команда может быть использована только в теме тикета в группе поддержки.")
+        await update.message.reply_text(
+            "Эта команда может быть использована только в теме тикета в группе поддержки."
+        )
         return
 
     # Find the user this thread belongs to
@@ -122,18 +138,20 @@ async def close_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             break
 
     try:
-        await context.bot.close_forum_topic(chat_id=SUPPORT_GROUP_ID, message_thread_id=thread_id)
+        await context.bot.close_forum_topic(
+            chat_id=SUPPORT_GROUP_ID, message_thread_id=thread_id
+        )
         await context.bot.send_message(
             chat_id=SUPPORT_GROUP_ID,
             text=f"Тикет #{thread_id} был закрыт пользователем {update.effective_user.mention_html()}.",
-            message_thread_id=thread_id
+            message_thread_id=thread_id,
         )
 
         if user_id_to_notify:
             del user_threads[user_id_to_notify]
             await context.bot.send_message(
                 chat_id=user_id_to_notify,
-                text="Ваш тикет был закрыт. Если у вас есть другие вопросы, просто отправьте новое сообщение!"
+                text="Ваш тикет был закрыт. Если у вас есть другие вопросы, просто отправьте новое сообщение!",
             )
 
     except Exception as e:
@@ -151,10 +169,11 @@ def main() -> None:
     application.add_handler(CommandHandler("close", close_ticket))
 
     # on non command i.e message - echo the message on Telegram
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    )
     application.add_handler(MessageHandler(filters.PHOTO, handle_message))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_message))
-
 
     # Start the Bot
     application.run_polling()
